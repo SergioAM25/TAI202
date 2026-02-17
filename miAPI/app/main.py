@@ -1,26 +1,61 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status, HTTPException
+from typing import Optional 
 import asyncio
 
 app = FastAPI()
 
-@app.get("/programador/{id}")
-async def obligatorio(id: int, nombre: str):
-    return {
-        "perfil": "Programador (Vista Docs)",
-        "id": id,
-        "nombre": nombre
-    }
+usuarios = [
+    {"id": 1, "nombre": "Fany", "edad": 21},
+    {"id": 2, "nombre": "Ali", "edad": 21},
+    {"id": 3, "nombre": "Dulce", "edad": 21},
+]
 
-@app.get("/usuario")
-async def opcional(username: str = "Invitado", premium: bool = False):
-    return {
-        "perfil": "Usuario Final (Vista Redoc)",
-        "username": username,
-        "es_premium": premium
-    }
 
-@app.get("/bienvenido")
-async def bienvenido():
-    await asyncio.sleep(5)
-    return {"mensaje": "Bienvenido a FastAPI", "estatus": "200"}
+@app.get("/v1/usuarios/", tags=['HTTP CRUD'])
+async def leer_usuarios():
+    return {"total": len(usuarios), "usuarios": usuarios}
 
+@app.post("/v1/usuarios/", tags=['HTTP CRUD'], status_code=status.HTTP_201_CREATED)
+async def agregar_usuarios(usuario: dict):
+    if any(usr["id"] == usuario.get("id") for usr in usuarios):
+        raise HTTPException(status_code=400, detail="El id ya existe")
+    
+    usuarios.append(usuario)
+    return {"mensaje": "Usuario Creado", "datos": usuario}
+
+#PUT, PATCH Y DELETE 
+
+@app.put("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
+async def actualizar_usuario_completo(usuario_id: int, usuario_actualizado: dict):
+    # Buscamos el índice del usuario
+    for indice, usr in enumerate(usuarios):
+        if usr["id"] == usuario_id:
+            # Reemplazamos el diccionario viejo por el nuevo
+            usuarios[indice] = usuario_actualizado
+            return {"mensaje": "Usuario actualizado", "datos": usuarios[indice]}
+    
+    # Si termina el ciclo y no lo encuentra
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+
+@app.patch("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
+async def actualizar_usuario_parcial(usuario_id: int, datos_parciales: dict):
+    "Modifica solo los campos enviados."
+    for usr in usuarios:
+        if usr["id"] == usuario_id:
+            # Actualizamos solo las llaves que vienen en el diccionario
+            usr.update(datos_parciales)
+            return {"mensaje": "Usuario actualizado parcialmente", "usuario": usr}
+    
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+
+@app.delete("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
+async def eliminar_usuario(usuario_id: int):
+    "Elimina al usuario de la lista."
+    for i, usr in enumerate(usuarios):
+        if usr["id"] == usuario_id:
+            usuario_eliminado = usuarios.pop(i)
+            return {"mensaje": "Usuario eliminado", "usuario": usuario_eliminado}
+    
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
