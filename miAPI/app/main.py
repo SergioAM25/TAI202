@@ -1,8 +1,14 @@
 from fastapi import FastAPI, status, HTTPException
 from typing import Optional 
 import asyncio
+from pydantic import BaseModel, Field
 
-app = FastAPI()
+app = FastAPI(
+    title= "Mi Primer API",
+    description= "Sergio Alvarez Matias",
+    version= "1.0"
+)
+
 
 usuarios = [
     {"id": 1, "nombre": "Fany", "edad": 21},
@@ -10,31 +16,36 @@ usuarios = [
     {"id": 3, "nombre": "Dulce", "edad": 21},
 ]
 
+class crear_usuario(BaseModel):
+    id: int = Field(...,gt=0, description="Identificador de usuario")
+    nombre: str = Field(...,min_length=0, max_length=50, example = "Juanita")
+    edad: int = Field(...,ge=1, le=123, description= "Edad valida entre 1 y 123")
 
 @app.get("/v1/usuarios/", tags=['HTTP CRUD'])
 async def leer_usuarios():
     return {"total": len(usuarios), "usuarios": usuarios}
 
 @app.post("/v1/usuarios/", tags=['HTTP CRUD'], status_code=status.HTTP_201_CREATED)
-async def agregar_usuarios(usuario: dict):
-    if any(usr["id"] == usuario.get("id") for usr in usuarios):
-        raise HTTPException(status_code=400, detail="El id ya existe")
+async def crear_usuario(usuario: crear_usuario):
+    for usr in usuarios:
+        if usr ["id"] == usuario.id:
+            raise HTTPException(
+                status_code=400, 
+                detail="El id ya existe"
+            )
     
     usuarios.append(usuario)
-    return {"mensaje": "Usuario Creado", "datos": usuario}
+    return {"mensaje": "Usuario Creado", "Usuario": usuario}
 
 #PUT, PATCH Y DELETE 
 
 @app.put("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
 async def actualizar_usuario_completo(usuario_id: int, usuario_actualizado: dict):
-    # Buscamos el índice del usuario
     for indice, usr in enumerate(usuarios):
         if usr["id"] == usuario_id:
-            # Reemplazamos el diccionario viejo por el nuevo
             usuarios[indice] = usuario_actualizado
             return {"mensaje": "Usuario actualizado", "datos": usuarios[indice]}
     
-    # Si termina el ciclo y no lo encuentra
     raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
 
@@ -43,7 +54,6 @@ async def actualizar_usuario_parcial(usuario_id: int, datos_parciales: dict):
     "Modifica solo los campos enviados."
     for usr in usuarios:
         if usr["id"] == usuario_id:
-            # Actualizamos solo las llaves que vienen en el diccionario
             usr.update(datos_parciales)
             return {"mensaje": "Usuario actualizado parcialmente", "usuario": usr}
     
