@@ -1,8 +1,8 @@
 services:
   api:
     build: .
-    container_name: server_FastAPI
+    container_name: server_FastAPIExamen
     ports:
-      - "5000:5000"
+      - "5002:5000"
     volumes:
       - ./app:/app/app
