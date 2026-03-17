@@ -1,9 +1,5 @@
-from fastapi import FastAPI, status, HTTPException, Depends
-from typing import Optional 
-import asyncio
-from pydantic import BaseModel, Field
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import secrets
+from fastapi import FastAPI
+from app.router import usuario,misc
 
 app = FastAPI(
     title= "Mi Primer API",
@@ -11,79 +7,5 @@ app = FastAPI(
     version= "1.0"
 )
 
-
-usuarios = [
-    {"id": 1, "nombre": "Fany", "edad": 21},
-    {"id": 2, "nombre": "Ali", "edad": 21},
-    {"id": 3, "nombre": "Dulce", "edad": 21},
-]
-
-class crear_usuario(BaseModel):
-    id: int = Field(...,gt=0, description="Identificador de usuario")
-    nombre: str = Field(...,min_length=0, max_length=50, example = "Juanita")
-    edad: int = Field(...,ge=1, le=123, description= "Edad valida entre 1 y 123")
-
-#Seguridad HTTP BASIC
-
-security= HTTPBasic()
-
-def verificar_peticion(credenciales:HTTPBasicCredentials=Depends(security)):
-    usuario_correcto=secrets.compare_digest(credenciales.username,"cheko")
-    contrasena_correcta=secrets.compare_digest(credenciales.password,"123456")
-    
-    if not(usuario_correcto and contrasena_correcta):
-        raise HTTPException(
-            status_code= status.HTTP_401_UNAUTHORIZED,
-            detail= "Credenciales no validas"
-        )
-    return credenciales.username
-
-@app.get("/v1/usuarios/", tags=['HTTP CRUD'])
-async def leer_usuarios():
-    return {"total": len(usuarios), "usuarios": usuarios}
-
-@app.post("/v1/usuarios/", tags=['HTTP CRUD'], status_code=status.HTTP_201_CREATED)
-async def crear_usuario(usuario: crear_usuario):
-    for usr in usuarios:
-        if usr ["id"] == usuario.id:
-            raise HTTPException(
-                status_code=400, 
-                detail="El id ya existe"
-            )
-    
-    usuarios.append(usuario)
-    return {"mensaje": "Usuario Creado", "Usuario": usuario}
-
-#PUT, PATCH Y DELETE 
-
-@app.put("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
-async def actualizar_usuario_completo(usuario_id: int, usuario_actualizado: dict):
-    for indice, usr in enumerate(usuarios):
-        if usr["id"] == usuario_id:
-            usuarios[indice] = usuario_actualizado
-            return {"mensaje": "Usuario actualizado", "datos": usuarios[indice]}
-    
-    raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-
-@app.patch("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
-async def actualizar_usuario_parcial(usuario_id: int, datos_parciales: dict):
-    "Modifica solo los campos enviados."
-    for usr in usuarios:
-        if usr["id"] == usuario_id:
-            usr.update(datos_parciales)
-            return {"mensaje": "Usuario actualizado parcialmente", "usuario": usr}
-    
-    raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-
-@app.delete("/v1/usuarios/{usuario_id}", tags=['HTTP CRUD'])
-async def eliminar_usuario(usuario_id: int, usuarioAuth:str= Depends(verificar_peticion)):
-
-    "Elimina al usuario de la lista."
-    for i, usr in enumerate(usuarios):
-        if usr["id"] == usuario_id:
-            usuario_eliminado = usuarios.pop(i)
-            return {"mensaje": f"Usuario eliminado por {usuarioAuth}"}
-    
-    raise HTTPException(status_code=404, detail="Usuario no encontrado")
+app.include_router(usuario.router)
+app.include_router(misc.misc)
